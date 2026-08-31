@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="product:price:currency" content="CAD">
+    <title>Currency Lens test page</title>
+    <style>
+      body { max-width: 780px; margin: 48px auto; padding: 0 24px; color: #172119; background: #f3f7f4; font: 16px/1.5 system-ui, sans-serif; }
+      main { padding: 30px; border-radius: 18px; background: white; box-shadow: 0 15px 50px rgba(18,48,29,.1); }
+      h1 { margin-top: 0; } .prices { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 12px; }
+      .price { padding: 18px; border: 1px solid #dbe5de; border-radius: 12px; font-size: 20px; font-weight: 700; }
+      label { display: block; margin-top: 24px; font-weight: 650; }
+      input { width: 100%; margin-top: 8px; padding: 12px; border: 1px solid #bac9bf; border-radius: 9px; font: inherit; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Currency Lens test page</h1>
+      <p>Hover directly over any price or focus the field.</p>
+      <div class="prices">
+        <div class="price">£149.00</div>
+        <div class="price">€1.234,56</div>
+        <div class="price">JPY 250,000</div>
+        <div class="price"><span>12,500</span> <span>CAD</span></div>
+        <div class="price">R$ 1.234,50</div>
+        <div class="price">$49.99</div>
+      </div>
+      <label for="amount">Invoice amount</label>
+      <input id="amount" value="12,500 CAD">
+    </main>
+  </body>
+</html>

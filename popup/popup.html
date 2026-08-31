@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Currency Lens</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="popup-shell">
+      <header class="popup-head">
+        <span class="brand-mark" aria-hidden="true">€$</span>
+        <div>
+          <h1>Currency Lens</h1>
+          <span id="activity" class="activity">Loading…</span>
+        </div>
+      </header>
+
+      <section class="setting">
+        <label class="setting-row" for="site-enabled">
+          <span>
+            <strong>Show conversions on this site</strong>
+            <small id="site-label">Current website</small>
+          </span>
+          <span class="switch"><input id="site-enabled" type="checkbox"><i></i></span>
+        </label>
+      </section>
+
+      <section class="setting">
+        <strong>Convert to</strong>
+        <div class="chips" aria-label="Conversion currencies">
+          <span>EUR · Euro</span>
+          <span>USD · Dollar</span>
+        </div>
+      </section>
+
+      <section class="setting">
+        <label for="dollar-preference"><strong>When “$” is ambiguous</strong></label>
+        <select id="dollar-preference">
+          <option value="auto">Use page context</option>
+          <option value="USD">Always US dollar</option>
+          <option value="CAD">Always Canadian dollar</option>
+          <option value="AUD">Always Australian dollar</option>
+          <option value="NZD">Always New Zealand dollar</option>
+          <option value="SGD">Always Singapore dollar</option>
+          <option value="HKD">Always Hong Kong dollar</option>
+          <option value="MXN">Always Mexican peso</option>
+          <option value="TWD">Always Taiwan dollar</option>
+        </select>
+      </section>
+
+      <section id="google-help" class="google-help" hidden>
+        <strong>Google Docs &amp; Sheets</strong>
+        <p>Turn on <b>Tools → Accessibility → Screen reader support</b>, then click or focus a cell, or select an amount. Google’s canvas-rendered text cannot be detected by ordinary hover alone.</p>
+      </section>
+
+      <footer>
+        <span id="rate-status">Rates not loaded yet</span>
+        <button id="refresh" type="button">Refresh</button>
+      </footer>
+      <p id="message" class="message" role="status" aria-live="polite"></p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>
