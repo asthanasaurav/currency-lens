@@ -102,9 +102,14 @@
   const ALL_MARKERS = [...Object.keys(DIRECT_MARKERS), ...Object.keys(WORD_MARKERS), ...Object.keys(AMBIGUOUS_MARKERS)]
     .sort((a, b) => b.length - a.length);
   const MARKER_PATTERN = ALL_MARKERS.map(escapeRegExp).join("|");
-  const NUMBER_PATTERN = String.raw`[-+−]?(?:\d{1,3}(?:[\s\u00a0\u202f.,'’]\d{3})+|\d+)(?:[.,]\d{1,2})?`;
-  const PREFIX_RE = new RegExp(String.raw`(${MARKER_PATTERN})\s*(${NUMBER_PATTERN})`, "giu");
-  const SUFFIX_RE = new RegExp(String.raw`(${NUMBER_PATTERN})\s*(${MARKER_PATTERN})`, "giu");
+  const DIGITS = String.raw`0-9\u0660-\u0669\u06f0-\u06f9`;
+  const INTER_MARKER_SPACE = String.raw`[\s\u200e\u200f\u061c]*`;
+  // Match Indian lakh/crore grouping before the generic alternatives. Without
+  // this branch, `11,20,000` is truncated to `11,20` and parsed as 11.2.
+  // Pier's RFE: Arabic AED pages may use Arabic-Indic digits plus `٬` and `٫` separators.
+  const NUMBER_PATTERN = String.raw`[-+−]?(?:[${DIGITS}]{1,3}(?:,[${DIGITS}]{2})+,[${DIGITS}]{3}|[${DIGITS}]{1,3}(?:[\s\u00a0\u202f.,'’\u066c][${DIGITS}]{3})+|[${DIGITS}]+)(?:[.,\u066b][${DIGITS}]{1,2})?`;
+  const PREFIX_RE = new RegExp(String.raw`(${MARKER_PATTERN})${INTER_MARKER_SPACE}(${NUMBER_PATTERN})`, "giu");
+  const SUFFIX_RE = new RegExp(String.raw`(${NUMBER_PATTERN})${INTER_MARKER_SPACE}(${MARKER_PATTERN})`, "giu");
 
   function escapeRegExp(value) {
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -144,7 +149,15 @@
   }
 
   function parseNumber(raw) {
-    let value = String(raw).trim().replace(/−/g, "-").replace(/[\s\u00a0\u202f'’]/g, "");
+    let value = String(raw)
+      .trim()
+      .replace(/−/g, "-")
+      .replace(/[\u200e\u200f\u061c]/g, "")
+      .replace(/\u066b/g, ".")
+      .replace(/\u066c/g, ",")
+      .replace(/[\u0660-\u0669]/g, (digit) => String(digit.charCodeAt(0) - 0x0660))
+      .replace(/[\u06f0-\u06f9]/g, (digit) => String(digit.charCodeAt(0) - 0x06f0))
+      .replace(/[\s\u00a0\u202f'’]/g, "");
     const negative = value.startsWith("-");
     value = value.replace(/^[-+]/, "");
     if (!value) return NaN;
