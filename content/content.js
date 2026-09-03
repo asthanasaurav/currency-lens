@@ -141,8 +141,11 @@
         const rect = usefulRect(range.getBoundingClientRect());
         if (rect && pointNearRect(x, y, rect, 5)) return { match, rect, identity: container };
       }
-      const accessible = candidateFromAccessibleElement(container, context);
-      if (accessible && pointNearRect(x, y, accessible.rect, 5)) return accessible;
+      // Accessibility labels can contain hidden row data (for example, an
+      // expense total attached to a supplier cell). They are useful for the
+      // explicit click/focus fallbacks used by Google editors, but using them
+      // on every hover produces conversions for values the user cannot see.
+      // Hover detection therefore stays limited to visible text ranges.
     }
     return null;
   }
