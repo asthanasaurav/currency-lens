@@ -25,6 +25,18 @@ test("understands common localized number formats", () => {
   assert.equal(one("-99.95 USD").amount, -99.95);
 });
 
+test("understands Indian lakh and crore grouping", () => {
+  assert.deepEqual(pick(one("₹11,20,000")), { amount: 1120000, currency: "INR", raw: "₹11,20,000" });
+  assert.equal(one("INR 1,12,34,567.89").amount, 11234567.89);
+  assert.equal(one("₹1,00,000").amount, 100000);
+});
+
+test("understands Arabic AED labels, digits, separators, and direction marks", () => {
+  assert.deepEqual(pick(one("د.إ\u200f١٬٢٣٤٫٥٠")), { amount: 1234.5, currency: "AED", raw: "د.إ\u200f١٬٢٣٤٫٥٠" });
+  assert.equal(one("١٬٢٣٤٫٥٠\u00a0د.إ\u200f").amount, 1234.5);
+  assert.equal(one("0.00\u200fد.إ").currency, "AED");
+});
+
 test("uses locale and metadata hints for ambiguous symbols", () => {
   assert.equal(one("$49", { locale: "en-US" }).currency, "USD");
   assert.equal(one("$49", { locale: "en-CA" }).currency, "CAD");
