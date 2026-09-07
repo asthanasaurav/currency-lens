@@ -116,38 +116,265 @@
 
   function candidateFromPoint(x, y, target) {
     const context = detectionContext();
-    const caret = caretAtPoint(x, y);
-    if (caret && caret.node && caret.node.nodeType === Node.TEXT_NODE) {
-      const text = caret.node.nodeValue || "";
-      const match = CurrencyLensCurrency.findCurrencyAtOffset(text, caret.offset, context);
-      if (match) {
-        const range = document.createRange();
-        range.setStart(caret.node, match.start);
-        range.setEnd(caret.node, match.end);
-        const rect = usefulRect(range.getBoundingClientRect());
-        if (rect) return { match, rect, identity: caret.node };
+    const hit = elementFromPointIgnoringTooltip(x, y);
+    const numericRoot = hit && hit.closest instanceof Function
+      ? hit.closest("[data-automation-id='numericText']")
+      : null;
+    if (numericRoot && numericRoot !== tooltip.host && !tooltip.host.contains(numericRoot)) {
+      const workdayNumeric = candidateFromWorkdayNumericText(numericRoot, x, y, context, hit);
+      if (workdayNumeric) return workdayNumeric;
+      return null;
+    }
+
+    const cellRoot = hit && hit.closest instanceof Function
+      ? hit.closest("td, th, [role='gridcell'], [data-automation-id='tabGridVisbleCell']")
+      : null;
+    if (cellRoot) {
+      for (const numeric of cellRoot.querySelectorAll("[data-automation-id='numericText']")) {
+        const rect = numeric.getBoundingClientRect();
+        if (!pointNearRect(x, y, rect, 2)) continue;
+        const workdayNumeric = candidateFromWorkdayNumericText(numeric, x, y, context, hit);
+        if (workdayNumeric) return workdayNumeric;
+        return null;
       }
     }
 
     const element = target instanceof Element ? target : target && target.parentElement;
     if (!element || element === tooltip.host) return null;
+
+    const workdayNumeric = candidateFromWorkdayNumericText(element, x, y, context, hit || element);
+    if (workdayNumeric) return workdayNumeric;
+
+    const stackedCell = candidateFromStackedCell(element, x, y, context);
+    if (stackedCell) return stackedCell;
+
+    const nestedLine = candidateFromNestedLine(element, x, y, context);
+    if (nestedLine) return nestedLine;
+
+    const caret = caretAtPoint(x, y);
+    if (caret && caret.node && caret.node.nodeType === Node.TEXT_NODE) {
+      const text = caret.node.nodeValue || "";
+      let match = CurrencyLensCurrency.findCurrencyAtOffset(text, caret.offset, context);
+      if (match) {
+        return candidateFromMatch(match, caret.node, caret.node, match.start, match.end);
+      }
+
+      const host = caret.node.parentElement;
+      if (host) {
+        const containers = CurrencyLensDom.textContainersFrom(host, { maxLength: MAX_ELEMENT_TEXT, maxDepth: 5 });
+        for (const container of containers) {
+          const offset = CurrencyLensDom.textOffsetInContainer(container, caret.node, caret.offset);
+          if (offset == null) continue;
+          const containerText = container.textContent || "";
+          match = CurrencyLensCurrency.findBestCurrencyAtPoint(containerText, offset, context);
+          if (match) return candidateFromContainerMatch(container, match);
+        }
+
+        const expanded = CurrencyLensDom.expandedTextFrom(host);
+        if (expanded && expanded !== text) {
+          const expandedOffset = expanded.indexOf(text.trim());
+          const offset = expandedOffset >= 0 ? expandedOffset + caret.offset : caret.offset;
+          match = CurrencyLensCurrency.findBestCurrencyAtPoint(expanded, offset, context);
+          if (match) {
+            const rect = usefulRect(host.getBoundingClientRect());
+            if (rect) return { match, rect, identity: host };
+          }
+        }
+      }
+    }
+
     const containers = CurrencyLensDom.textContainersFrom(element, { maxLength: MAX_ELEMENT_TEXT, maxDepth: 5 });
     for (const container of containers) {
-      const text = container.textContent || "";
-      const matches = CurrencyLensCurrency.parseCurrencyAmounts(text, context);
-      for (const match of matches) {
-        const range = rangeForTextOffsets(container, match.start, match.end);
-        if (!range) continue;
-        const rect = usefulRect(range.getBoundingClientRect());
-        if (rect && pointNearRect(x, y, rect, 5)) return { match, rect, identity: container };
-      }
-      // Accessibility labels can contain hidden row data (for example, an
-      // expense total attached to a supplier cell). They are useful for the
-      // explicit click/focus fallbacks used by Google editors, but using them
-      // on every hover produces conversions for values the user cannot see.
-      // Hover detection therefore stays limited to visible text ranges.
+      const candidate = bestContainerCandidate(container, x, y, context);
+      if (candidate) return candidate;
     }
     return null;
+  }
+
+  function candidateFromWorkdayNumericText(element, x, y, context, hitElement) {
+    const parts = CurrencyLensDom.workdayNumericParts(element);
+    if (!parts) return null;
+
+    const pageCurrency = CurrencyLensDom.workdayPageCurrency();
+    const enrichedContext = pageCurrency
+      ? { ...context, currencyHint: context.currencyHint || pageCurrency }
+      : context;
+
+    const hit = hitElement instanceof Element ? hitElement : null;
+    const onPreferred = Boolean(
+      parts.preferred
+      && parts.preferredText
+      && hit
+      && (parts.preferred === hit || parts.preferred.contains(hit))
+    );
+
+    if (onPreferred) {
+      const preferredMatch = parseWorkdayPreferredAmount(parts.preferredText, enrichedContext);
+      if (preferredMatch) {
+        const preferredRect = usefulRect(parts.preferredRect) || usefulRect(parts.preferred.getBoundingClientRect());
+        if (preferredRect) {
+          return { match: preferredMatch, rect: preferredRect, identity: parts.preferred };
+        }
+      }
+    }
+
+    if (parts.primaryText) {
+      const primaryMatch = parseWorkdayPrimaryAmount(parts.primaryText, enrichedContext);
+      if (primaryMatch) {
+        const primaryRect = usefulRect(parts.primaryRect) || usefulRect(parts.numeric.getBoundingClientRect());
+        if (primaryRect) {
+          return { match: primaryMatch, rect: primaryRect, identity: parts.numeric };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  function parseWorkdayPrimaryAmount(text, context) {
+    const matches = CurrencyLensCurrency.parseCurrencyAmounts(text, context);
+    if (matches.length === 1) return matches[0];
+
+    const inherited = CurrencyLensCurrency.inferCellCurrencyFromLines([text], context)
+      || String(context.currencyHint || CurrencyLensDom.workdayPageCurrency() || "").toUpperCase();
+    return CurrencyLensCurrency.parseCurrencyLine(text, context, inherited);
+  }
+
+  function parseWorkdayPreferredAmount(text, context) {
+    const normalized = String(text || "").trim();
+    if (!normalized) return null;
+    const matches = CurrencyLensCurrency.parseCurrencyAmounts(normalized, context);
+    if (matches.length === 1) return matches[0];
+    if (/^[\d\s.,]+$/u.test(normalized)) {
+      return CurrencyLensCurrency.parseCurrencyLine(normalized, context, "USD");
+    }
+    return CurrencyLensCurrency.parseCurrencyLine(normalized, context, "USD");
+  }
+
+  function candidateFromStackedCell(element, x, y, context) {
+    const root = CurrencyLensDom.cellRootFrom(element);
+    if (!(root instanceof Element) || root === tooltip.host) return null;
+
+    let segments = CurrencyLensDom.expandSegmentsWithNewlines(CurrencyLensDom.collectLineSegments(root));
+    if (segments.length < 2) return null;
+
+    const visibleSegments = segments.filter((segment) => pointNearRect(x, y, segment.rect, 8));
+    if (!visibleSegments.length) return null;
+
+    const cellCurrency = CurrencyLensCurrency.inferCellCurrencyFromLines(segments.map((segment) => segment.text), context);
+    let best = null;
+    let bestScore = Infinity;
+
+    for (const segment of visibleSegments) {
+      const match = CurrencyLensCurrency.parseCurrencyLine(segment.text, context, cellCurrency);
+      if (!match) continue;
+      const score = CurrencyLensDom.distanceToRect(x, y, segment.rect);
+      if (score < bestScore) {
+        bestScore = score;
+        best = { match, rect: usefulRect(segment.rect) || segment.rect, identity: segment.element };
+      }
+    }
+
+    return best;
+  }
+
+  function candidateFromNestedLine(element, x, y, context) {
+    const root = CurrencyLensDom.cellRootFrom(element);
+    if (!(root instanceof Element) || root === tooltip.host) return null;
+
+    const hits = [];
+    collectSingleMatchElements(root, hits, context, x, y, 0);
+    if (!hits.length) return null;
+
+    hits.sort((left, right) => {
+      const leftDistance = CurrencyLensDom.distanceToRect(x, y, left.rect);
+      const rightDistance = CurrencyLensDom.distanceToRect(x, y, right.rect);
+      if (Math.abs(leftDistance - rightDistance) > 1) return leftDistance - rightDistance;
+      const leftVertical = Math.abs(y - (left.rect.top + left.rect.height / 2));
+      const rightVertical = Math.abs(y - (right.rect.top + right.rect.height / 2));
+      if (Math.abs(leftVertical - rightVertical) > 1) return leftVertical - rightVertical;
+      if (right.depth !== left.depth) return right.depth - left.depth;
+      return left.area - right.area;
+    });
+
+    const best = hits[0];
+    return { match: best.match, rect: best.rect, identity: best.element };
+  }
+
+  function collectSingleMatchElements(element, hits, context, x, y, depth) {
+    if (depth > 8 || !(element instanceof Element) || element === tooltip.host) return;
+
+    const text = String(element.textContent || "").trim();
+    if (text && text.length <= 160) {
+      const matches = CurrencyLensCurrency.parseCurrencyAmounts(text, context);
+      if (matches.length === 1) {
+        const rect = usefulRect(element.getBoundingClientRect());
+        if (rect && pointNearRect(x, y, rect, 4)) {
+          hits.push({
+            element,
+            match: matches[0],
+            rect,
+            area: rect.width * rect.height,
+            depth
+          });
+        }
+      }
+    }
+
+    for (const child of element.children) {
+      collectSingleMatchElements(child, hits, context, x, y, depth + 1);
+    }
+  }
+
+  function candidateFromMatch(match, startNode, endNode, startOffset, endOffset) {
+    const range = document.createRange();
+    range.setStart(startNode, startOffset);
+    range.setEnd(endNode, endOffset);
+    const rect = usefulRect(range.getBoundingClientRect());
+    if (!rect) return null;
+    return { match, rect, identity: startNode };
+  }
+
+  function candidateFromContainerMatch(container, match) {
+    const range = rangeForTextOffsets(container, match.start, match.end);
+    if (!range) return null;
+    const rect = usefulRect(range.getBoundingClientRect());
+    if (!rect) return null;
+    return { match, rect, identity: container };
+  }
+
+  function bestContainerCandidate(container, x, y, context) {
+    const text = container.textContent || "";
+    const matches = CurrencyLensCurrency.parseCurrencyAmounts(text, context);
+    if (!matches.length) return null;
+
+    const lineCount = CurrencyLensCurrency.lineCountForText(text);
+    let pointerLine = null;
+    if (lineCount > 1) {
+      const containerRect = usefulRect(container.getBoundingClientRect());
+      if (containerRect) {
+        pointerLine = Math.max(0, Math.min(
+          lineCount - 1,
+          Math.floor(((y - containerRect.top) / containerRect.height) * lineCount)
+        ));
+      }
+    }
+
+    let best = null;
+    let bestScore = Infinity;
+    for (const match of matches) {
+      if (pointerLine != null && CurrencyLensCurrency.lineIndexForOffset(text, match.start) !== pointerLine) continue;
+      const range = rangeForTextOffsets(container, match.start, match.end);
+      if (!range) continue;
+      const rect = usefulRect(range.getBoundingClientRect());
+      if (!rect || !pointNearRect(x, y, rect, 8)) continue;
+      const score = CurrencyLensDom.distanceToRect(x, y, rect) - Math.min(rect.width, rect.height) * 0.02;
+      if (score < bestScore) {
+        bestScore = score;
+        best = { match, rect, identity: container };
+      }
+    }
+    return best;
   }
 
   function caretAtPoint(x, y) {
@@ -196,6 +423,19 @@
 
   function usefulRect(rect) {
     return rect && rect.width > 0 && rect.height > 0 ? rect : null;
+  }
+
+  function elementFromPointIgnoringTooltip(x, y) {
+    if (typeof document.elementsFromPoint === "function") {
+      for (const element of document.elementsFromPoint(x, y)) {
+        if (!(element instanceof Element) || element === tooltip.host || tooltip.host.contains(element)) continue;
+        return element;
+      }
+      return null;
+    }
+    const hit = document.elementFromPoint(x, y);
+    if (hit instanceof Element && hit !== tooltip.host && !tooltip.host.contains(hit)) return hit;
+    return null;
   }
 
   function getEditableField(target) {
@@ -429,7 +669,7 @@
   function detectionContext() {
     return {
       locale: document.documentElement.lang || navigator.language || "",
-      currencyHint: pageCurrencyHint(),
+      currencyHint: pageCurrencyHint() || CurrencyLensDom.workdayPageCurrency(),
       dollarPreference: state.settings.dollarPreference
     };
   }
