@@ -104,11 +104,15 @@
   const MARKER_PATTERN = ALL_MARKERS.map(escapeRegExp).join("|");
   const DIGITS = String.raw`0-9\u0660-\u0669\u06f0-\u06f9`;
   const INTER_MARKER_SPACE = String.raw`[\s\u200e\u200f\u061c]*`;
+  const PREFIX_MARKER_GAP = String.raw`[\s\u200e\u200f\u061c.,،٫]*`;
   // Match Indian lakh/crore grouping before the generic alternatives. Without
   // this branch, `11,20,000` is truncated to `11,20` and parsed as 11.2.
   // Pier's RFE: Arabic AED pages may use Arabic-Indic digits plus `٬` and `٫` separators.
-  const NUMBER_PATTERN = String.raw`[-+−]?(?:[${DIGITS}]{1,3}(?:,[${DIGITS}]{2})+,[${DIGITS}]{3}|[${DIGITS}]{1,3}(?:[\s\u00a0\u202f.,'’\u066c][${DIGITS}]{3})+|[${DIGITS}]+)(?:[.,\u066b][${DIGITS}]{1,2})?`;
-  const PREFIX_RE = new RegExp(String.raw`(${MARKER_PATTERN})${INTER_MARKER_SPACE}(${NUMBER_PATTERN})`, "giu");
+  // Keep thousands separators consistent within one amount. Spreadsheet DOM
+  // layers can join neighbouring values (for example `$5,631.94` + `3.9`),
+  // which must never be reinterpreted as `$5,631,943.9`.
+  const NUMBER_PATTERN = String.raw`[-+−]?(?:[${DIGITS}]{1,3}(?:,[${DIGITS}]{2})+,[${DIGITS}]{3}|[${DIGITS}]{1,3}(?:,[${DIGITS}]{3})+|[${DIGITS}]{1,3}(?:\.[${DIGITS}]{3})+|[${DIGITS}]{1,3}(?:[\s\u00a0\u202f][${DIGITS}]{3})+|[${DIGITS}]{1,3}(?:['’][${DIGITS}]{3})+|[${DIGITS}]{1,3}(?:\u066c[${DIGITS}]{3})+|[${DIGITS}]+)(?:[.,\u066b][${DIGITS}]{1,2})?`;
+  const PREFIX_RE = new RegExp(String.raw`(${MARKER_PATTERN})${PREFIX_MARKER_GAP}(${NUMBER_PATTERN})`, "giu");
   const SUFFIX_RE = new RegExp(String.raw`(${NUMBER_PATTERN})${INTER_MARKER_SPACE}(${MARKER_PATTERN})`, "giu");
 
   function escapeRegExp(value) {
@@ -116,12 +120,18 @@
   }
 
   function normalizeMarker(marker) {
-    const exact = Object.keys(DIRECT_MARKERS).find((item) => item.toLocaleLowerCase() === marker.toLocaleLowerCase());
-    if (exact) return { currency: DIRECT_MARKERS[exact], ambiguous: false };
-    const word = Object.keys(WORD_MARKERS).find((item) => item.toLocaleLowerCase() === marker.toLocaleLowerCase());
-    if (word) return { currency: WORD_MARKERS[word], ambiguous: false };
-    const ambiguous = Object.keys(AMBIGUOUS_MARKERS).find((item) => item.toLocaleLowerCase() === marker.toLocaleLowerCase());
-    return ambiguous ? { currency: null, ambiguous: AMBIGUOUS_MARKERS[ambiguous] } : null;
+    const candidates = [String(marker || "").trim()];
+    const trimmed = candidates[0].replace(/[.,،٫]+$/u, "");
+    if (trimmed && trimmed !== candidates[0]) candidates.push(trimmed);
+    for (const candidate of candidates) {
+      const exact = Object.keys(DIRECT_MARKERS).find((item) => item.toLocaleLowerCase() === candidate.toLocaleLowerCase());
+      if (exact) return { currency: DIRECT_MARKERS[exact], ambiguous: false };
+      const word = Object.keys(WORD_MARKERS).find((item) => item.toLocaleLowerCase() === candidate.toLocaleLowerCase());
+      if (word) return { currency: WORD_MARKERS[word], ambiguous: false };
+      const ambiguous = Object.keys(AMBIGUOUS_MARKERS).find((item) => item.toLocaleLowerCase() === candidate.toLocaleLowerCase());
+      if (ambiguous) return { currency: null, ambiguous: AMBIGUOUS_MARKERS[ambiguous] };
+    }
+    return null;
   }
 
   function resolveAmbiguous(markerType, context) {
@@ -195,21 +205,43 @@
     const before = text[start - 1] || "";
     const after = text[end] || "";
     const markerIsCodeOrWord = /^[\p{L}.]+$/u.test(marker);
+    const segment = text.slice(start, end);
     // When one marker sits between two numbers (for example Flipkart's
     // struck-through `26,499₹17,999`), it belongs to the following amount.
     // Rejecting the suffix interpretation lets the prefix match win.
     if (!prefix && /^\s*[-+−]?\d/u.test(text.slice(end))) return false;
+    // Workday and spreadsheet cells often stack converted amounts on the next
+    // line. A suffix marker must stay on the same line as its amount.
+    if (!prefix && /[\n\r\u2028\u2029]/u.test(segment)) return false;
     if (!markerIsCodeOrWord) return true;
     if (prefix && /[\p{L}\p{N}]/u.test(before)) return false;
-    if (!prefix && /[\p{L}\p{N}]/u.test(after)) return false;
+    if (!prefix && /[\p{L}\p{N}]/u.test(after) && !/^[.,،٫]/u.test(after)) return false;
     return true;
   }
 
-  function makeResult(text, match, prefix, context) {
+  function trimMergedSpreadsheetMatch(text, match, prefix) {
     const marker = prefix ? match[1] : match[2];
-    const numberRaw = prefix ? match[2] : match[1];
+    let numberRaw = prefix ? match[2] : match[1];
+    let raw = match[0];
+    const tail = text.slice(match.index + raw.length);
+    // Spreadsheet DOM layers can join neighbouring values (for example
+    // `$5,631.94` + `3.9`), which must never become `$5,631.943.9`.
+    if (!/^[.,]\d/u.test(tail)) return { marker, numberRaw, raw };
+
+    const decimalMatch = numberRaw.match(/^(.*[.,]\d{1,2})([.,]\d+)$/u);
+    if (!decimalMatch) return { marker, numberRaw, raw };
+
+    numberRaw = decimalMatch[1];
+    raw = prefix ? `${marker}${numberRaw}` : `${numberRaw}${marker}`;
+    return { marker, numberRaw, raw };
+  }
+
+  function makeResult(text, match, prefix, context) {
+    const trimmed = trimMergedSpreadsheetMatch(text, match, prefix);
+    const marker = trimmed.marker;
+    const numberRaw = trimmed.numberRaw;
     const start = match.index;
-    const end = start + match[0].length;
+    const end = start + trimmed.raw.length;
     if (!boundaryIsSafe(text, start, end, marker, prefix)) return null;
     const markerInfo = normalizeMarker(marker);
     if (!markerInfo) return null;
@@ -222,11 +254,90 @@
       currencyName: CURRENCIES[currency],
       marker,
       numberRaw,
-      raw: match[0],
+      raw: trimmed.raw,
       start,
       end,
       ambiguous: markerInfo.ambiguous || false
     };
+  }
+
+  function findBestCurrencyAtPoint(text, offset, context) {
+    const matches = parseCurrencyAmounts(text, context);
+    if (!matches.length) return null;
+    const direct = matches.filter((item) => offset >= item.start - 1 && offset <= item.end + 1);
+    if (direct.length) {
+      return direct.sort((a, b) => Math.abs((a.start + a.end) / 2 - offset) - Math.abs((b.start + b.end) / 2 - offset))[0];
+    }
+    const lineCount = (text.match(/[\n\r\u2028\u2029]/g) || []).length + 1;
+    if (lineCount > 1) return null;
+    return matches
+      .slice()
+      .sort((a, b) => offsetDistance(a, offset) - offsetDistance(b, offset))[0];
+  }
+
+  function lineIndexForOffset(text, offset) {
+    let line = 0;
+    for (let index = 0; index < offset && index < text.length; index += 1) {
+      if (/[\n\r\u2028\u2029]/u.test(text[index])) line += 1;
+    }
+    return line;
+  }
+
+  function lineCountForText(text) {
+    return (String(text).match(/[\n\r\u2028\u2029]/g) || []).length + 1;
+  }
+
+  const BARE_AMOUNT_RE = new RegExp(String.raw`^[\s\u200e\u200f\u061c]*(${NUMBER_PATTERN})[\s\u200e\u200f\u061c\.،٫]*$`, "iu");
+  const CELL_MARKER_RE = /(?:د\.إ|ر\.س|\bAED\b|\bSAR\b)/iu;
+
+  function inferCellCurrencyFromLines(lineTexts, context) {
+    for (const lineText of lineTexts) {
+      const matches = parseCurrencyAmounts(String(lineText || ""), context);
+      for (const match of matches) {
+        if (match.currency === "AED" || match.currency === "SAR") return match.currency;
+      }
+    }
+    for (const lineText of lineTexts) {
+      if (CELL_MARKER_RE.test(String(lineText || ""))) {
+        if (/د\.إ|\bAED\b/iu.test(lineText)) return "AED";
+        if (/ر\.س|\bSAR\b/iu.test(lineText)) return "SAR";
+      }
+    }
+    return null;
+  }
+
+  function parseCurrencyLine(text, context, inheritedCurrency) {
+    const lineText = String(text || "").trim();
+    if (!lineText) return null;
+
+    const matches = parseCurrencyAmounts(lineText, context);
+    if (matches.length === 1) return matches[0];
+    if (matches.length > 1) return null;
+
+    if (!inheritedCurrency || !CURRENCIES[inheritedCurrency]) return null;
+    const bare = lineText.match(BARE_AMOUNT_RE);
+    if (!bare) return null;
+
+    const amount = parseNumber(bare[1]);
+    if (!Number.isFinite(amount) || Math.abs(amount) >= 1e15) return null;
+    return {
+      amount,
+      currency: inheritedCurrency,
+      currencyName: CURRENCIES[inheritedCurrency],
+      marker: inheritedCurrency,
+      numberRaw: bare[1],
+      raw: lineText,
+      start: 0,
+      end: lineText.length,
+      ambiguous: false,
+      inferred: true
+    };
+  }
+
+  function offsetDistance(match, offset) {
+    if (offset < match.start) return match.start - offset;
+    if (offset > match.end) return offset - match.end;
+    return 0;
   }
 
   function parseCurrencyAmounts(text, context) {
@@ -252,5 +363,16 @@
     return null;
   }
 
-  return Object.freeze({ CURRENCIES, parseNumber, parseCurrencyAmounts, findCurrencyAtOffset, resolveAmbiguous });
+  return Object.freeze({
+    CURRENCIES,
+    parseNumber,
+    parseCurrencyAmounts,
+    parseCurrencyLine,
+    inferCellCurrencyFromLines,
+    findBestCurrencyAtPoint,
+    findCurrencyAtOffset,
+    lineCountForText,
+    lineIndexForOffset,
+    resolveAmbiguous
+  });
 });
