@@ -4,7 +4,9 @@ Currency Lens is a Manifest V3 extension for Chromium browsers. Hover over a pri
 
 ## Download
 
-[Download Currency Lens 1.2.6](https://github.com/asthanasaurav/currency-lens/raw/refs/heads/main/downloads/currency-lens-extension-v1.2.6.zip)
+[Download Currency Lens 1.2.6](https://github.com/asthanasaurav/currency-lens/releases/download/v1.2.6/currency-lens-extension-v1.2.6.zip)
+
+Or grab it from the [v1.2.6 release page](https://github.com/asthanasaurav/currency-lens/releases/tag/v1.2.6).
 
 ## Install in Chrome, Edge, Brave, or another Chromium browser
 
