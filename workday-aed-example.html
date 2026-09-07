@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Workday numericText reproduction</title>
+    <style>
+      :root { font-family: Inter, system-ui, sans-serif; color: #172033; background: #f5f7fb; }
+      body { max-width: 980px; margin: 0 auto; padding: 48px 24px 80px; }
+      h1 { margin: 0 0 10px; }
+      p { color: #536176; line-height: 1.55; }
+      table { border-collapse: collapse; width: 100%; background: white; border: 1px solid #dce2ec; }
+      td { border: 1px solid #e4e9f2; padding: 14px 16px; vertical-align: top; min-width: 220px; }
+      .wd-Text { display: inline-block; position: relative; }
+      .wd-PreferredCurrency { display: block; margin-left: 0; font-size: 90%; color: #666; }
+      .WA5U { position: absolute; left: 0; bottom: -14px; }
+    </style>
+  </head>
+  <body>
+    <div data-automation-id="promptOption" data-automation-label="AED" hidden>AED</div>
+    <h1>Workday numericText reproduction</h1>
+    <p>Copied from saved Workday HTML. Hover the AED amount line, not the preferred-currency line.</p>
+
+    <table role="grid">
+      <tr>
+        <td data-automation-id="tabGridVisbleCell">
+          <div class="WDFE WEFE" role="presentation">
+            <div class="wd-Text WIH0 WLH0 WB5" data-automation-id="numericText" dir="rtl" aria-describedby="wd-test">د.إ.&#x200f;458,325.00<div class="gwt-Label wd-PreferredCurrency WA5U" data-automation-id="preferredCurrency">$124,785.40</div></div>
+          </div>
+        </td>
+        <td data-automation-id="tabGridVisbleCell">
+          <div class="WDFE WEFE" role="presentation">
+            <div class="wd-Text WIH0 WLH0 WB5" data-automation-id="numericText" dir="ltr" aria-describedby="wd-test">458,325.00<div class="gwt-Label wd-PreferredCurrency WA5U" data-automation-id="preferredCurrency">124,785.40</div></div>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td data-automation-id="tabGridVisbleCell">
+          <div class="WDFE WEFE" role="presentation">
+            <div class="wd-Text WIH0 WLH0 WB5" data-automation-id="numericText" dir="rtl" aria-describedby="wd-test">د.إ.&#x200f;20,685.60<div class="gwt-Label wd-PreferredCurrency WA5U" data-automation-id="preferredCurrency">$5,631.94</div></div>
+          </div>
+        </td>
+        <td data-automation-id="tabGridVisbleCell">
+          <div class="WDFE WEFE" role="presentation">
+            <div class="wd-Text WIH0 WLH0 WB5" data-automation-id="numericText" dir="ltr" aria-describedby="wd-test">£2,695.00<div class="gwt-Label wd-PreferredCurrency WA5U" data-automation-id="preferredCurrency">$3,648.30</div></div>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
