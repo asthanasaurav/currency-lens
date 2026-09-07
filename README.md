@@ -4,11 +4,11 @@ Currency Lens is a Manifest V3 extension for Chromium browsers. Hover over a pri
 
 ## Download
 
-[Download Currency Lens 1.2.1](https://github.com/asthanasaurav/currency-lens/raw/refs/heads/main/downloads/currency-lens-extension-v1.2.1.zip)
+[Download Currency Lens 1.2.6](https://github.com/asthanasaurav/currency-lens/raw/refs/heads/main/downloads/currency-lens-extension-v1.2.6.zip)
 
 ## Install in Chrome, Edge, Brave, or another Chromium browser
 
-1. Download the packaged extension above and unzip `currency-lens-extension-v1.2.1.zip`.
+1. Download the packaged extension above and unzip `currency-lens-extension-v1.2.6.zip`.
 2. Open the browser's extensions page (`chrome://extensions` in Chrome).
 3. Turn on **Developer mode**.
 4. Choose **Load unpacked** and select the `currency-lens` folder.
@@ -40,6 +40,10 @@ Conversions are indicative, not trading, card-network, tax, or accounting rates.
 Google’s editors can render document and spreadsheet content on a canvas rather than as normal webpage text. Currency Lens therefore supports clicked or keyboard-focused cells, accessibility announcements and labels, editable fields, and selected text in these editors, but cannot reliably detect arbitrary canvas text by pointer position alone.
 
 For the best support, open **Tools → Accessibility settings**, turn on **Screen reader support**, then click or focus a cell, or select the amount. Google also documents the keyboard shortcut as **Command + Option + Z** on macOS and **Ctrl + Alt + Z** on Windows or ChromeOS.
+
+## Workday
+
+Workday amount cells use `[data-automation-id="numericText"]` with the entered amount in the cell text and a converted value in a nested `[data-automation-id="preferredCurrency"]` row. Currency Lens reads those separately so hovering the primary AED amount does not pick up the preferred-currency line beneath it.
 
 ## Development
 
