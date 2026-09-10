@@ -2,7 +2,8 @@
 
 importScripts(
   chrome.runtime.getURL("shared/rates.js"),
-  chrome.runtime.getURL("shared/currencies.js")
+  chrome.runtime.getURL("shared/currencies.js"),
+  chrome.runtime.getURL("shared/theme.js")
 );
 
 const API_URL = "https://api.frankfurter.dev/v2/rates?base=EUR";
@@ -13,7 +14,9 @@ const FAILURE_RETRY_DELAY_MS = 10 * 60 * 1000;
 const DEFAULT_SETTINGS = Object.freeze({
   enabledDomains: [],
   dollarPreference: "auto",
-  conversionTargets: ["EUR", "USD"]
+  conversionTargets: ["EUR", "USD"],
+  uiTheme: "glass",
+  panelOpacity: 88
 });
 
 let refreshPromise = null;
@@ -85,6 +88,18 @@ async function handleMessage(message) {
     return { ok: true, settings };
   }
 
+  if (message.type === "SET_UI_APPEARANCE") {
+    const settings = await getSettings();
+    const appearance = CurrencyLensTheme.normalizeAppearance({
+      uiTheme: message.uiTheme,
+      panelOpacity: message.panelOpacity
+    });
+    settings.uiTheme = appearance.uiTheme;
+    settings.panelOpacity = appearance.panelOpacity;
+    await chrome.storage.local.set({ [SETTINGS_KEY]: settings });
+    return { ok: true, settings };
+  }
+
   if (message.type === "REFRESH_RATES") {
     const cache = await getRates(true);
     return { ok: true, rate: rateStatus(cache) };
@@ -102,7 +117,8 @@ async function getSettings() {
   return {
     enabledDomains: [...new Set(enabledDomains)].sort(),
     dollarPreference: value.dollarPreference || "auto",
-    conversionTargets: normalizeStoredConversionTargets(value.conversionTargets)
+    conversionTargets: normalizeStoredConversionTargets(value.conversionTargets),
+    ...CurrencyLensTheme.normalizeAppearance(value)
   };
 }
 

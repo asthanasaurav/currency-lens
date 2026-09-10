@@ -1,7 +1,7 @@
 (function startCurrencyLens() {
   "use strict";
 
-  if (window.__currencyLensLoaded || !window.CurrencyLensCurrency || !window.CurrencyLensDom) return;
+  if (window.__currencyLensLoaded || !window.CurrencyLensCurrency || !window.CurrencyLensDom || !window.CurrencyLensTheme) return;
   window.__currencyLensLoaded = true;
 
   const HOVER_DELAY_MS = 110;
@@ -9,7 +9,7 @@
   const INPUT_DELAY_MS = 170;
   const MAX_ELEMENT_TEXT = 600;
   const state = {
-    settings: { enabledDomains: [], dollarPreference: "auto", conversionTargets: ["EUR", "USD"] },
+    settings: { enabledDomains: [], dollarPreference: "auto", conversionTargets: ["EUR", "USD"], uiTheme: "glass", panelOpacity: 88 },
     enabled: false,
     pinned: false,
     currentKey: "",
@@ -37,6 +37,13 @@
   window.addEventListener("scroll", onViewportChange, true);
   window.addEventListener("resize", onViewportChange, { passive: true });
 
+  if (typeof matchMedia === "function") {
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+      const theme = state.settings.uiTheme;
+      if (theme === "auto" || theme === "glass") tooltip.applyAppearance(state.settings);
+    });
+  }
+
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local" || !changes.currencyLensSettings) return;
     applySettings(changes.currencyLensSettings.newValue || {});
@@ -55,9 +62,11 @@
     state.settings = {
       enabledDomains: Array.isArray(settings.enabledDomains) ? settings.enabledDomains : [],
       dollarPreference: settings.dollarPreference || "auto",
-      conversionTargets: conversionTargetsFromSettings(settings)
+      conversionTargets: conversionTargetsFromSettings(settings),
+      ...CurrencyLensTheme.normalizeAppearance(settings)
     };
     state.enabled = state.settings.enabledDomains.includes(siteHostname());
+    tooltip.applyAppearance(state.settings);
     if (!state.enabled) hideTooltip(true);
   }
 
@@ -717,27 +726,10 @@
     const host = document.createElement("div");
     host.id = "currency-lens-tooltip-host";
     host.hidden = true;
-    host.style.cssText = "all:initial;position:fixed;z-index:2147483647;width:272px;left:0;top:0;display:block;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color-scheme:light;";
+    host.style.cssText = "all:initial;position:fixed;z-index:2147483647;width:272px;left:0;top:0;display:block;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;";
     const shadow = host.attachShadow({ mode: "closed" });
     shadow.innerHTML = `
-      <style>
-        :host([hidden]){display:none!important}
-        *{box-sizing:border-box}
-        .lens{position:relative;width:272px;padding:14px;border:1px solid rgba(255,255,255,.12);border-radius:14px;color:#f5fff8;background:#11271a;box-shadow:0 18px 44px rgba(7,23,13,.34);font:13px/1.35 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-        .lens:after{content:"";position:absolute;left:calc(50% - 7px);top:-7px;width:13px;height:13px;background:#11271a;border-left:1px solid rgba(255,255,255,.12);border-top:1px solid rgba(255,255,255,.12);transform:rotate(45deg)}
-        .lens.above:after{top:auto;bottom:-7px;border:0;border-right:1px solid rgba(255,255,255,.12);border-bottom:1px solid rgba(255,255,255,.12)}
-        .head{display:flex;align-items:center;gap:7px;padding-right:25px;color:#a8bbae;font-size:10px;font-weight:750;letter-spacing:.055em;text-transform:uppercase}
-        .dot{width:7px;height:7px;border-radius:50%;background:#72e4a0;box-shadow:0 0 0 3px rgba(114,228,160,.13)}
-        .pin{position:absolute;right:9px;top:8px;width:28px;height:28px;border:0;border-radius:8px;color:#9fb1a5;background:transparent;cursor:pointer;font:17px/1 sans-serif}
-        .pin:hover,.pin.active{color:#72e4a0;background:rgba(114,228,160,.1)}
-        .source{margin:9px 0 10px;font-size:20px;font-weight:760;letter-spacing:-.02em}
-        .row{display:flex;justify-content:space-between;gap:16px;padding:8px 0;border-top:1px solid rgba(255,255,255,.1)}
-        .label{color:#aab8af}.value{font-weight:760;font-variant-numeric:tabular-nums}
-        .meta{margin-top:8px;color:#819489;font-size:9px}.error{padding:9px 0 1px;border-top:1px solid rgba(255,255,255,.1);color:#ffcfb8;font-size:11px;line-height:1.45}
-        .skeleton{height:13px;width:76px;border-radius:5px;background:linear-gradient(90deg,#274233,#355641,#274233);background-size:200% 100%;animation:pulse 1.2s linear infinite}
-        @keyframes pulse{to{background-position:-200% 0}}
-        @media (prefers-reduced-motion:reduce){.skeleton{animation:none}}
-      </style>
+      <style>${CurrencyLensTheme.tooltipStylesheet()}</style>
       <section class="lens" role="tooltip" aria-live="polite">
         <button class="pin" type="button" title="Keep this conversion open" aria-label="Keep this conversion open">⌖</button>
         <div class="content"></div>
@@ -784,7 +776,11 @@
       pin.setAttribute("aria-label", pin.title);
     }
     function setAbove(value) { card.classList.toggle("above", value); }
-    return { host, renderLoading, renderResult, renderError, setPinned, setAbove };
+    function applyAppearance(settings) {
+      CurrencyLensTheme.applyToElement(card, settings);
+    }
+    applyAppearance({ uiTheme: "glass", panelOpacity: 88 });
+    return { host, renderLoading, renderResult, renderError, setPinned, setAbove, applyAppearance };
   }
 
   function formatSource(amount, currency) {

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Currency Lens",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Hover over prices or focus amount fields to see the detected currency converted to currencies you choose.",
   "permissions": ["activeTab", "alarms", "storage"],
   "host_permissions": ["https://api.frankfurter.dev/*"],
@@ -25,7 +25,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["shared/currencies.js", "shared/dom.js", "content/content.js"],
+      "js": ["shared/currencies.js", "shared/dom.js", "shared/theme.js", "content/content.js"],
       "run_at": "document_idle",
       "all_frames": true
     }

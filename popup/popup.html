@@ -56,6 +56,27 @@
         </select>
       </section>
 
+      <section class="setting">
+        <strong>Appearance</strong>
+        <div class="appearance-grid">
+          <label for="ui-theme"><span class="range-head"><span>Theme</span></span></label>
+          <select id="ui-theme">
+            <option value="glass">Glass (modern)</option>
+            <option value="auto">Match system</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+          <label class="range-field" for="panel-opacity">
+            <span class="range-head">
+              <span>Panel transparency</span>
+              <output id="panel-opacity-value" for="panel-opacity">88%</output>
+            </span>
+            <input id="panel-opacity" type="range" min="55" max="100" step="1" value="88">
+          </label>
+        </div>
+        <p class="setting-note">Applies to the popup and the on-page conversion card.</p>
+      </section>
+
       <section id="google-help" class="google-help" hidden>
         <strong>Google Docs &amp; Sheets</strong>
         <p>Turn on <b>Tools → Accessibility → Screen reader support</b>, then click or focus a cell, or select an amount. Google’s canvas-rendered text cannot be detected by ordinary hover alone.</p>
@@ -68,6 +89,7 @@
       <p id="message" class="message" role="status" aria-live="polite"></p>
     </main>
     <script src="../shared/currencies.js"></script>
+    <script src="../shared/theme.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

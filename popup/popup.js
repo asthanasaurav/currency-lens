@@ -5,6 +5,9 @@ const siteLabel = document.getElementById("site-label");
 const conversionTargetPrimary = document.getElementById("conversion-target-primary");
 const conversionTargetSecondary = document.getElementById("conversion-target-secondary");
 const dollarPreference = document.getElementById("dollar-preference");
+const uiTheme = document.getElementById("ui-theme");
+const panelOpacity = document.getElementById("panel-opacity");
+const panelOpacityValue = document.getElementById("panel-opacity-value");
 const activity = document.getElementById("activity");
 const rateStatus = document.getElementById("rate-status");
 const refreshButton = document.getElementById("refresh");
@@ -30,6 +33,7 @@ async function initialize() {
       && response.settings.enabledDomains.includes(hostname);
     applyConversionTargets(response.settings.conversionTargets);
     dollarPreference.value = response.settings.dollarPreference || "auto";
+    applyAppearance(response.settings);
     activity.textContent = siteToggle.checked ? "● Enabled on this site" : "Off on this site";
     showRateStatus(response.rate);
   } catch (error) {
@@ -64,6 +68,19 @@ dollarPreference.addEventListener("change", async () => {
   const response = await chrome.runtime.sendMessage({ type: "SET_DOLLAR_PREFERENCE", preference: dollarPreference.value });
   if (!response || !response.ok) message.textContent = (response && response.error) || "Could not save this preference.";
 });
+
+uiTheme.addEventListener("change", saveAppearance);
+panelOpacity.addEventListener("input", () => {
+  panelOpacityValue.textContent = `${panelOpacity.value}%`;
+  applyAppearance({ uiTheme: uiTheme.value, panelOpacity: panelOpacity.value });
+});
+panelOpacity.addEventListener("change", saveAppearance);
+
+if (typeof matchMedia === "function") {
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    if (uiTheme.value === "auto" || uiTheme.value === "glass") applyAppearance({ uiTheme: uiTheme.value, panelOpacity: panelOpacity.value });
+  });
+}
 
 refreshButton.addEventListener("click", async () => {
   refreshButton.disabled = true;
@@ -118,6 +135,28 @@ async function saveConversionTargets() {
   applyConversionTargets(response.settings.conversionTargets);
 }
 
+async function saveAppearance() {
+  message.textContent = "";
+  const response = await chrome.runtime.sendMessage({
+    type: "SET_UI_APPEARANCE",
+    uiTheme: uiTheme.value,
+    panelOpacity: panelOpacity.value
+  });
+  if (!response || !response.ok) {
+    message.textContent = (response && response.error) || "Could not save appearance settings.";
+    return;
+  }
+  applyAppearance(response.settings);
+}
+
+function applyAppearance(settings) {
+  const appearance = CurrencyLensTheme.normalizeAppearance(settings);
+  uiTheme.value = appearance.uiTheme;
+  panelOpacity.value = String(appearance.panelOpacity);
+  panelOpacityValue.textContent = `${appearance.panelOpacity}%`;
+  CurrencyLensTheme.applyToElement(document.documentElement, appearance);
+  CurrencyLensTheme.applyToElement(document.body, appearance);
+}
 function hostnameFromUrl(value) {
   try {
     const url = new URL(value || "");

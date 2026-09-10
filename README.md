@@ -4,13 +4,13 @@ Currency Lens is a Manifest V3 extension for Chromium browsers. Hover over a pri
 
 ## Download
 
-[Download Currency Lens 1.4.0](https://github.com/asthanasaurav/currency-lens/releases/download/v1.4.0/currency-lens-extension-v1.4.0.zip)
+[Download Currency Lens 1.5.0](https://github.com/asthanasaurav/currency-lens/releases/download/v1.5.0/currency-lens-extension-v1.5.0.zip)
 
-Or grab it from the [v1.4.0 release page](https://github.com/asthanasaurav/currency-lens/releases/tag/v1.4.0).
+Or grab it from the [v1.5.0 release page](https://github.com/asthanasaurav/currency-lens/releases/tag/v1.5.0).
 
 ## Install in Chrome, Edge, Brave, or another Chromium browser
 
-1. Download the packaged extension above and unzip `currency-lens-extension-v1.4.0.zip`.
+1. Download the packaged extension above and unzip `currency-lens-extension-v1.5.0.zip`.
 2. Open the browser's extensions page (`chrome://extensions` in Chrome).
 3. Turn on **Developer mode**.
 4. Choose **Load unpacked** and select the `currency-lens` folder.
@@ -27,6 +27,7 @@ For local `file://` pages such as `demo.html`, enable **Allow access to file URL
 - Click the target icon in the conversion card to pin it; press Escape or click the close icon to dismiss it.
 - Open the extension menu on a site to enable or disable Currency Lens for that domain. The extension is off by default until you enable a site; enabled domains are remembered across tabs and browser restarts.
 - Choose which two currencies conversions should show in the popup’s **Convert to** dropdowns. The default is euro and US dollar.
+- Adjust **Appearance** in the popup: pick a theme (glass, light, dark, or system) and slide **Panel transparency** for the popup and on-page conversion card.
 - Choose how an ambiguous `$` should be interpreted, or refresh rates from the extension menu.
 
 The detector supports common ISO currency codes, localized decimal/grouping separators, and common symbols for currencies including EUR, USD, GBP, JPY, CNY, CAD, AUD, CHF, INR, KRW, BRL, MXN, SGD, HKD, ZAR, PLN, CZK, HUF, RON, TRY, THB, PHP, IDR, MYR, ILS, UAH, NGN, VND, AED, and SAR.
