@@ -2,6 +2,16 @@
 
 Currency Lens is a Manifest V3 extension for Chromium browsers. Hover over a price on a webpage—or focus a form field containing an amount—to see the detected currency and an indicative conversion to euros and US dollars.
 
+## Screenshots
+
+**On-page conversion card**
+
+![Currency Lens conversion card showing detected GBP and converted EUR and USD amounts](docs/conversion-card.png)
+
+**Extension popup**
+
+![Currency Lens popup with site enable toggle, conversion targets, and appearance settings](docs/popup-settings.png)
+
 ## Download
 
 [Download Currency Lens 1.5.1](https://github.com/asthanasaurav/currency-lens/releases/download/v1.5.1/currency-lens-extension-v1.5.1.zip)
