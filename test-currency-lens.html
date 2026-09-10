@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Currency Lens test page</title>
+    <style>
+      :root { color-scheme: light; font-family: Inter, system-ui, sans-serif; color: #172033; background: #f5f7fb; }
+      body { max-width: 980px; margin: 0 auto; padding: 48px 24px 80px; }
+      h1 { margin: 0; font-size: 2rem; }
+      .intro { color: #536176; margin: 10px 0 32px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+      .card { background: white; border: 1px solid #dce2ec; border-radius: 14px; padding: 18px; box-shadow: 0 4px 16px #1720330a; }
+      .label { color: #63708a; font-size: .8rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+      .price { font-size: 1.65rem; font-weight: 750; margin-top: 10px; }
+      .hint { color: #63708a; font-size: .9rem; margin: 8px 0 0; }
+      .split-price { display: inline-flex; gap: 2px; align-items: baseline; }
+      .currency { font-size: 1.35rem; }
+      .no-money { margin-top: 32px; padding: 20px; border: 1px dashed #b7c2d5; border-radius: 14px; background: #edf1f7; }
+      code { background: #e1e7f0; border-radius: 4px; padding: 2px 5px; }
+    </style>
+  </head>
+  <body>
+    <h1>Currency Lens test page</h1>
+    <p class="intro">Hover each amount. In Google Sheets or Docs, use a click instead. The final panel contains ordinary numbers that must not trigger a conversion.</p>
+
+    <div class="grid">
+      <section class="card"><div class="label">US dollar</div><div class="price">US$1,234.56</div><p class="hint">Symbol before amount</p></section>
+      <section class="card"><div class="label">Euro</div><div class="price">€1.234,56</div><p class="hint">European separators</p></section>
+      <section class="card"><div class="label">British pound</div><div class="price">£749.99</div><p class="hint">Standard symbol</p></section>
+      <section class="card"><div class="label">Japanese yen</div><div class="price">¥125,000</div><p class="hint">No decimal part</p></section>
+      <section class="card"><div class="label">Indian rupee</div><div class="price">₹11,20,000</div><p class="hint">Eleven lakh twenty thousand</p></section>
+      <section class="card"><div class="label">Indian rupee</div><div class="price">INR 1,23,45,678</div><p class="hint">Indian crore grouping</p></section>
+      <section class="card"><div class="label">Arabic AED</div><div class="price" dir="rtl">١٬٢٣٤٫٥٠&nbsp;د.إ</div><p class="hint">Arabic-Indic digits and AED symbol</p></section>
+      <section class="card"><div class="label">Arabic AED variations</div><div class="price"><bdi dir="ltr">0.00 د.إ</bdi></div><div class="price"><bdi dir="ltr">0.00د.إ</bdi></div><div class="price"><bdi dir="ltr">00.1, د.إ</bdi></div><p class="hint">The AED symbol is intentionally displayed after each number</p></section>
+      <section class="card"><div class="label">UAE dirham</div><div class="price">AED 2,450.00</div><p class="hint">ISO code</p></section>
+      <section class="card"><div class="label">Split price</div><div class="price split-price"><span class="currency">₹</span><span>22,999</span></div><p class="hint">Separate text nodes, like product cards</p></section>
+      <section class="card"><div class="label">Australian dollar</div><div class="price">A$89.95</div><p class="hint">Country-qualified symbol</p></section>
+      <section class="card"><div class="label">Canadian dollar</div><div class="price">CA$450</div><p class="hint">Country-qualified symbol</p></section>
+      <section class="card"><div class="label">Swiss franc</div><div class="price">CHF 99.90</div><p class="hint">ISO code</p></section>
+    </div>
+
+    <section class="no-money">
+      <strong>Must not convert</strong>
+      <p>Order number 18,000 · 64 GB + 4 GB · 39% discount · Rating 4.2 · 2026-09-03 · Segment 2</p>
+      <p>These deliberately contain numbers without a currency marker. Hovering them should not show a Currency Lens popup.</p>
+    </section>
+  </body>
+</html>

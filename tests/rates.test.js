@@ -20,8 +20,16 @@ test("converts a source amount to EUR and USD by triangulation", () => {
   assert.ok(Math.abs(converted.USD - 117) < 1e-10);
 });
 
+test("converts to configurable target currencies", () => {
+  const rateMap = { EUR: 1, GBP: 0.86, USD: 1.17, CAD: 1.5 };
+  const converted = rates.convertFromEuroBase(86, "GBP", rateMap, ["GBP", "CAD"]);
+  assert.ok(Math.abs(converted.GBP - 100) < 1e-10);
+  assert.ok(Math.abs(converted.CAD - 150) < 1e-10);
+});
+
 test("handles EUR and rejects unavailable rates", () => {
   assert.deepEqual(rates.convertFromEuroBase(25, "EUR", { EUR: 1, USD: 1.2 }), { EUR: 25, USD: 30 });
   assert.equal(rates.convertFromEuroBase(25, "XYZ", { EUR: 1, USD: 1.2 }), null);
   assert.equal(rates.convertFromEuroBase(NaN, "EUR", { EUR: 1, USD: 1.2 }), null);
+  assert.equal(rates.convertFromEuroBase(25, "EUR", { EUR: 1, USD: 1.2 }, ["GBP"]), null);
 });

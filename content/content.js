@@ -9,8 +9,8 @@
   const INPUT_DELAY_MS = 170;
   const MAX_ELEMENT_TEXT = 600;
   const state = {
-    settings: { enabled: true, dollarPreference: "auto", siteOverrides: {} },
-    enabled: true,
+    settings: { enabledDomains: [], dollarPreference: "auto", conversionTargets: ["EUR", "USD"] },
+    enabled: false,
     pinned: false,
     currentKey: "",
     activeField: null,
@@ -53,13 +53,30 @@
 
   function applySettings(settings) {
     state.settings = {
-      enabled: settings.enabled !== false,
+      enabledDomains: Array.isArray(settings.enabledDomains) ? settings.enabledDomains : [],
       dollarPreference: settings.dollarPreference || "auto",
-      siteOverrides: settings.siteOverrides || {}
+      conversionTargets: conversionTargetsFromSettings(settings)
     };
-    const siteSetting = state.settings.siteOverrides[siteHostname()];
-    state.enabled = state.settings.enabled && siteSetting !== false;
+    state.enabled = state.settings.enabledDomains.includes(siteHostname());
     if (!state.enabled) hideTooltip(true);
+  }
+
+  function conversionTargetsFromSettings(settings) {
+    const allowed = CurrencyLensCurrency.CURRENCIES;
+    const fallback = ["EUR", "USD"];
+    const input = settings && Array.isArray(settings.conversionTargets) ? settings.conversionTargets : fallback;
+    const normalized = [];
+    for (const code of input) {
+      const value = String(code || "").toUpperCase();
+      if (!allowed[value] || normalized.includes(value)) continue;
+      normalized.push(value);
+      if (normalized.length >= 2) break;
+    }
+    return normalized.length ? normalized : fallback.slice();
+  }
+
+  function activeConversionTargets() {
+    return conversionTargetsFromSettings(state.settings);
   }
 
   function siteHostname() {
@@ -611,7 +628,7 @@
     state.currentKey = key;
     state.requestId += 1;
     const requestId = state.requestId;
-    tooltip.renderLoading(candidate.match);
+    tooltip.renderLoading(candidate.match, activeConversionTargets());
     tooltip.host.hidden = false;
     placeTooltip(candidate.rect);
 
@@ -619,13 +636,14 @@
       const response = await chrome.runtime.sendMessage({
         type: "GET_CONVERSION",
         amount: candidate.match.amount,
-        currency: candidate.match.currency
+        currency: candidate.match.currency,
+        targets: activeConversionTargets()
       });
       if (requestId !== state.requestId || key !== state.currentKey) return;
       if (!response || !response.ok) {
         tooltip.renderError(candidate.match, response && response.error);
       } else {
-        tooltip.renderResult(candidate.match, response);
+        tooltip.renderResult(candidate.match, response, activeConversionTargets());
       }
       placeTooltip(candidate.rect);
     } catch (_) {
@@ -737,13 +755,24 @@
     function header(match) {
       return `<div class="head"><i class="dot"></i>Detected · ${escapeHtml(match.currencyName)}</div><div class="source">${escapeHtml(formatSource(match.amount, match.currency))}</div>`;
     }
-    function renderLoading(match) {
-      content.innerHTML = `${header(match)}<div class="row"><span class="label">Euro</span><i class="skeleton"></i></div><div class="row"><span class="label">US dollar</span><i class="skeleton"></i></div><div class="meta">Getting the latest cached rate…</div>`;
+    function targetRows(targets, converted, loading) {
+      return targets.map((code) => {
+        const label = CurrencyLensCurrency.CURRENCIES[code] || code;
+        const value = loading
+          ? '<i class="skeleton"></i>'
+          : `<b class="value">${escapeHtml(formatCurrency(converted[code], code))}</b>`;
+        return `<div class="row"><span class="label">${escapeHtml(label)}</span>${value}</div>`;
+      }).join("");
     }
-    function renderResult(match, response) {
+    function renderLoading(match, targets) {
+      const list = Array.isArray(targets) && targets.length ? targets : ["EUR", "USD"];
+      content.innerHTML = `${header(match)}${targetRows(list, null, true)}<div class="meta">Getting the latest cached rate…</div>`;
+    }
+    function renderResult(match, response, targets) {
+      const list = Array.isArray(targets) && targets.length ? targets : ["EUR", "USD"];
       const freshness = response.stale ? "Cached rate" : "Indicative rate";
       const date = response.rateDate ? ` · ${escapeHtml(response.rateDate)}` : "";
-      content.innerHTML = `${header(match)}<div class="row"><span class="label">Euro</span><b class="value">${escapeHtml(formatCurrency(response.converted.EUR, "EUR"))}</b></div><div class="row"><span class="label">US dollar</span><b class="value">${escapeHtml(formatCurrency(response.converted.USD, "USD"))}</b></div><div class="meta">${freshness}${date}${match.ambiguous ? ` · “${escapeHtml(match.marker)}” inferred from page context` : ""}</div>`;
+      content.innerHTML = `${header(match)}${targetRows(list, response.converted, false)}<div class="meta">${freshness}${date}${match.ambiguous ? ` · “${escapeHtml(match.marker)}” inferred from page context` : ""}</div>`;
     }
     function renderError(match, message) {
       content.innerHTML = `${header(match)}<div class="error">${escapeHtml(message || "Conversion is temporarily unavailable.")}</div>`;

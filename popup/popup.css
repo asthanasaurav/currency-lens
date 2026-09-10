@@ -23,6 +23,10 @@ h1 { margin: 0; font-size: 15px; letter-spacing: -.02em; }
 .switch input:checked + i { background: #38a968; }
 .switch input:checked + i::after { transform: translateX(14px); }
 .switch input:focus-visible + i { outline: 2px solid #166d3b; outline-offset: 2px; }
+.setting-note { margin: 10px 0 0; color: #63756b; font-size: 10px; line-height: 1.45; }
+.target-field select { margin-top: 0; }
+.target-field { display: grid; gap: 6px; }
+.target-field span { color: #758078; font-size: 9px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .chips { display: flex; gap: 7px; margin-top: 10px; }
 .chips span { padding: 6px 9px; border: 1px solid #6bd697; border-radius: 8px; color: #174c2d; background: #e0f8e9; font-size: 10px; font-weight: 750; }
 select { width: 100%; margin-top: 9px; border: 1px solid #d4ded7; border-radius: 8px; padding: 8px 10px; color: #243128; background: #fff; font: 11px inherit; }
@@ -41,6 +45,7 @@ footer button:disabled { cursor: wait; opacity: .5; }
   .setting { border-color: #29372e; }
   .setting small, footer { color: #95a299; }
   select { border-color: #3a4a3f; color: #edf6f0; background: #111914; }
+  .target-field span { color: #95a299; }
   .chips span { color: #bdf2d0; border-color: #347c51; background: #173b26; }
   .google-help { color: #ccebd7; border-color: #315441; background: #142e1e; }
 }

@@ -2,14 +2,19 @@
 
 const siteToggle = document.getElementById("site-enabled");
 const siteLabel = document.getElementById("site-label");
+const conversionTargetPrimary = document.getElementById("conversion-target-primary");
+const conversionTargetSecondary = document.getElementById("conversion-target-secondary");
 const dollarPreference = document.getElementById("dollar-preference");
 const activity = document.getElementById("activity");
 const rateStatus = document.getElementById("rate-status");
 const refreshButton = document.getElementById("refresh");
 const message = document.getElementById("message");
 const googleHelp = document.getElementById("google-help");
+const currencyOptions = buildCurrencyOptions();
 let hostname = "";
 
+populateTargetSelect(conversionTargetPrimary);
+populateTargetSelect(conversionTargetSecondary);
 initialize();
 
 async function initialize() {
@@ -21,10 +26,11 @@ async function initialize() {
     siteToggle.disabled = !hostname;
     const response = await chrome.runtime.sendMessage({ type: "GET_SETTINGS" });
     if (!response || !response.ok) throw new Error(response && response.error);
-    const siteSetting = response.settings.siteOverrides[hostname];
-    siteToggle.checked = response.settings.enabled !== false && siteSetting !== false;
+    siteToggle.checked = Array.isArray(response.settings.enabledDomains)
+      && response.settings.enabledDomains.includes(hostname);
+    applyConversionTargets(response.settings.conversionTargets);
     dollarPreference.value = response.settings.dollarPreference || "auto";
-    activity.textContent = siteToggle.checked ? "● Active" : "Paused on this site";
+    activity.textContent = siteToggle.checked ? "● Enabled on this site" : "Off on this site";
     showRateStatus(response.rate);
   } catch (error) {
     message.textContent = error && error.message ? error.message : "Could not load extension settings.";
@@ -41,7 +47,16 @@ siteToggle.addEventListener("change", async () => {
     message.textContent = (response && response.error) || "Could not update this website.";
     return;
   }
-  activity.textContent = siteToggle.checked ? "● Active" : "Paused on this site";
+  activity.textContent = siteToggle.checked ? "● Enabled on this site" : "Off on this site";
+});
+
+conversionTargetPrimary.addEventListener("change", () => {
+  reconcileTargetSelections();
+  saveConversionTargets();
+});
+conversionTargetSecondary.addEventListener("change", () => {
+  reconcileTargetSelections();
+  saveConversionTargets();
 });
 
 dollarPreference.addEventListener("change", async () => {
@@ -65,6 +80,43 @@ refreshButton.addEventListener("click", async () => {
     refreshButton.textContent = "Refresh";
   }
 });
+
+function buildCurrencyOptions() {
+  const currencies = globalThis.CurrencyLensCurrency && CurrencyLensCurrency.CURRENCIES;
+  if (!currencies) return [];
+  return Object.keys(currencies)
+    .sort((left, right) => currencies[left].localeCompare(currencies[right], undefined, { sensitivity: "base" }))
+    .map((code) => ({ code, label: `${code} · ${currencies[code]}` }));
+}
+
+function populateTargetSelect(select) {
+  select.innerHTML = currencyOptions.map((option) => `<option value="${option.code}">${option.label}</option>`).join("");
+}
+
+function applyConversionTargets(targets) {
+  const normalized = Array.isArray(targets) && targets.length ? targets : ["EUR", "USD"];
+  conversionTargetPrimary.value = normalized[0] || "EUR";
+  conversionTargetSecondary.value = normalized[1] || "USD";
+  reconcileTargetSelections();
+}
+
+function reconcileTargetSelections() {
+  if (conversionTargetPrimary.value === conversionTargetSecondary.value) {
+    const alternate = currencyOptions.find((option) => option.code !== conversionTargetPrimary.value);
+    if (alternate) conversionTargetSecondary.value = alternate.code;
+  }
+}
+
+async function saveConversionTargets() {
+  message.textContent = "";
+  const targets = [conversionTargetPrimary.value, conversionTargetSecondary.value];
+  const response = await chrome.runtime.sendMessage({ type: "SET_CONVERSION_TARGETS", targets });
+  if (!response || !response.ok) {
+    message.textContent = (response && response.error) || "Could not save conversion currencies.";
+    return;
+  }
+  applyConversionTargets(response.settings.conversionTargets);
+}
 
 function hostnameFromUrl(value) {
   try {

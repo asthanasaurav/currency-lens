@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Arabic AED detection example</title>
+    <style>
+      :root { font-family: Inter, system-ui, sans-serif; color: #172033; background: #f5f7fb; }
+      body { max-width: 1040px; margin: 0 auto; padding: 48px 24px; }
+      h1 { margin: 0 0 10px; }
+      p { color: #536176; line-height: 1.55; }
+      figure { margin: 28px 0; padding: 14px; background: white; border: 1px solid #dce2ec; border-radius: 16px; box-shadow: 0 6px 22px #17203312; }
+      img { display: block; width: 100%; height: auto; border-radius: 9px; }
+      figcaption { margin: 12px 4px 2px; color: #63708a; font-size: .9rem; }
+      .test { padding: 18px; background: #e9fff5; border: 1px solid #99dfbe; border-radius: 12px; }
+      .amount { display: inline-block; margin-top: 6px; font-size: 1.7rem; font-weight: 750; color: #075a36; }
+    </style>
+  </head>
+  <body>
+    <h1>Arabic AED detection</h1>
+    <p>This reference screenshot shows AED written with Arabic characters and Arabic-Indic number formatting.</p>
+
+    <figure>
+      <img src="arabic-aed-reference.png" alt="Spreadsheet cell showing Arabic AED notation and an AED to USD exchange-rate tooltip">
+      <figcaption>Reference: Arabic AED display in a spreadsheet.</figcaption>
+    </figure>
+
+    <section class="test">
+      <strong>Hover this test value:</strong><br>
+      <span class="amount" dir="rtl">١٬٢٣٤٫٥٠&nbsp;د.إ</span>
+      <br><br>
+      <strong>Additional AED formats:</strong><br>
+      <span class="amount" dir="rtl">0.00 د.إ</span>
+      <span class="amount" dir="rtl">0.00د.إ</span>
+      <span class="amount" dir="rtl">00.1, د.إ</span>
+    </section>
+  </body>
+</html>

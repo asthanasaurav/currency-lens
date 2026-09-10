@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Currency Lens",
-  "version": "1.2.6",
-  "description": "Hover over prices or focus amount fields to see the detected currency converted to EUR and USD.",
+  "version": "1.4.0",
+  "description": "Hover over prices or focus amount fields to see the detected currency converted to currencies you choose.",
   "permissions": ["activeTab", "alarms", "storage"],
   "host_permissions": ["https://api.frankfurter.dev/*"],
   "background": {

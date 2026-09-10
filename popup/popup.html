@@ -19,18 +19,25 @@
       <section class="setting">
         <label class="setting-row" for="site-enabled">
           <span>
-            <strong>Show conversions on this site</strong>
+            <strong>Enable on this site</strong>
             <small id="site-label">Current website</small>
           </span>
           <span class="switch"><input id="site-enabled" type="checkbox"><i></i></span>
         </label>
+        <p class="setting-note">Currency Lens stays off until you enable a site here.</p>
       </section>
 
       <section class="setting">
         <strong>Convert to</strong>
-        <div class="chips" aria-label="Conversion currencies">
-          <span>EUR · Euro</span>
-          <span>USD · Dollar</span>
+        <div class="target-row">
+          <label class="target-field">
+            <span>First</span>
+            <select id="conversion-target-primary"></select>
+          </label>
+          <label class="target-field">
+            <span>Second</span>
+            <select id="conversion-target-secondary"></select>
+          </label>
         </div>
       </section>
 
@@ -60,6 +67,7 @@
       </footer>
       <p id="message" class="message" role="status" aria-live="polite"></p>
     </main>
+    <script src="../shared/currencies.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

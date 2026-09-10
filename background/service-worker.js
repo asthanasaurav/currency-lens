@@ -1,6 +1,9 @@
 "use strict";
 
-importScripts(chrome.runtime.getURL("shared/rates.js"));
+importScripts(
+  chrome.runtime.getURL("shared/rates.js"),
+  chrome.runtime.getURL("shared/currencies.js")
+);
 
 const API_URL = "https://api.frankfurter.dev/v2/rates?base=EUR";
 const CACHE_KEY = "currencyLensRateCache";
@@ -8,9 +11,9 @@ const SETTINGS_KEY = "currencyLensSettings";
 const CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const FAILURE_RETRY_DELAY_MS = 10 * 60 * 1000;
 const DEFAULT_SETTINGS = Object.freeze({
-  enabled: true,
+  enabledDomains: [],
   dollarPreference: "auto",
-  siteOverrides: {}
+  conversionTargets: ["EUR", "USD"]
 });
 
 let refreshPromise = null;
@@ -46,7 +49,8 @@ async function handleMessage(message) {
     const currency = String(message.currency || "").toUpperCase();
     if (!Number.isFinite(amount) || !/^[A-Z]{3}$/.test(currency)) return { ok: false, error: "Invalid amount or currency" };
     const cache = await getRates(false);
-    const converted = CurrencyLensRates.convertFromEuroBase(amount, currency, cache.rates);
+    const targets = normalizeStoredConversionTargets(message.targets || (await getSettings()).conversionTargets);
+    const converted = CurrencyLensRates.convertFromEuroBase(amount, currency, cache.rates, targets);
     if (!converted) return { ok: false, error: `No current rate is available for ${currency}.`, rateDate: cache.date || null };
     return { ok: true, converted, rateDate: cache.date, fetchedAt: cache.fetchedAt, stale: Boolean(cache.stale) };
   }
@@ -59,7 +63,7 @@ async function handleMessage(message) {
     const hostname = normalizeHostname(message.hostname);
     if (!hostname) return { ok: false, error: "This page has no configurable website." };
     const settings = await getSettings();
-    settings.siteOverrides[hostname] = Boolean(message.enabled);
+    setDomainEnabled(settings, hostname, Boolean(message.enabled));
     await chrome.storage.local.set({ [SETTINGS_KEY]: settings });
     return { ok: true, settings };
   }
@@ -70,6 +74,13 @@ async function handleMessage(message) {
     if (!allowed.includes(preference)) return { ok: false, error: "Unsupported preference" };
     const settings = await getSettings();
     settings.dollarPreference = preference;
+    await chrome.storage.local.set({ [SETTINGS_KEY]: settings });
+    return { ok: true, settings };
+  }
+
+  if (message.type === "SET_CONVERSION_TARGETS") {
+    const settings = await getSettings();
+    settings.conversionTargets = normalizeStoredConversionTargets(message.targets);
     await chrome.storage.local.set({ [SETTINGS_KEY]: settings });
     return { ok: true, settings };
   }
@@ -85,11 +96,35 @@ async function handleMessage(message) {
 async function getSettings() {
   const stored = await chrome.storage.local.get(SETTINGS_KEY);
   const value = stored[SETTINGS_KEY] || {};
+  const enabledDomains = Array.isArray(value.enabledDomains)
+    ? value.enabledDomains.map(normalizeHostname).filter(Boolean)
+    : [];
   return {
-    enabled: value.enabled !== false,
+    enabledDomains: [...new Set(enabledDomains)].sort(),
     dollarPreference: value.dollarPreference || "auto",
-    siteOverrides: value.siteOverrides && typeof value.siteOverrides === "object" ? value.siteOverrides : {}
+    conversionTargets: normalizeStoredConversionTargets(value.conversionTargets)
   };
+}
+
+function normalizeStoredConversionTargets(targets) {
+  const allowed = Object.keys(CurrencyLensCurrency.CURRENCIES);
+  const normalized = CurrencyLensRates.normalizeConversionTargets(
+    Array.isArray(targets) ? targets.filter((code) => allowed.includes(String(code || "").toUpperCase())) : undefined
+  );
+  return normalized.filter((code) => allowed.includes(code));
+}
+
+function setDomainEnabled(settings, hostname, enabled) {
+  const host = normalizeHostname(hostname);
+  if (!host) return;
+  const domains = new Set(settings.enabledDomains);
+  if (enabled) domains.add(host);
+  else domains.delete(host);
+  settings.enabledDomains = [...domains].sort();
+}
+
+function isDomainEnabled(settings, hostname) {
+  return settings.enabledDomains.includes(normalizeHostname(hostname));
 }
 
 function normalizeHostname(hostname) {

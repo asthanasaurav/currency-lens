@@ -16,15 +16,37 @@
     return { rates, date };
   }
 
-  function convertFromEuroBase(amount, sourceCurrency, rateMap) {
+  function convertFromEuroBase(amount, sourceCurrency, rateMap, targets) {
     const source = String(sourceCurrency || "").toUpperCase();
     const rates = rateMap || {};
     const sourcePerEuro = source === "EUR" ? 1 : Number(rates[source]);
-    const usdPerEuro = Number(rates.USD);
-    if (!Number.isFinite(amount) || !Number.isFinite(sourcePerEuro) || sourcePerEuro <= 0 || !Number.isFinite(usdPerEuro) || usdPerEuro <= 0) return null;
+    if (!Number.isFinite(amount) || !Number.isFinite(sourcePerEuro) || sourcePerEuro <= 0) return null;
     const eur = amount / sourcePerEuro;
-    return { EUR: eur, USD: eur * usdPerEuro };
+    const converted = {};
+    for (const target of normalizeConversionTargets(targets)) {
+      if (target === "EUR") {
+        converted.EUR = eur;
+        continue;
+      }
+      const targetPerEuro = Number(rates[target]);
+      if (!Number.isFinite(targetPerEuro) || targetPerEuro <= 0) return null;
+      converted[target] = eur * targetPerEuro;
+    }
+    return converted;
   }
 
-  return Object.freeze({ rowsToRateMap, convertFromEuroBase });
+  function normalizeConversionTargets(targets) {
+    const fallback = ["EUR", "USD"];
+    const input = Array.isArray(targets) ? targets : fallback;
+    const normalized = [];
+    for (const code of input) {
+      const value = String(code || "").toUpperCase();
+      if (!/^[A-Z]{3}$/.test(value) || normalized.includes(value)) continue;
+      normalized.push(value);
+      if (normalized.length >= 2) break;
+    }
+    return normalized.length ? normalized : fallback.slice();
+  }
+
+  return Object.freeze({ rowsToRateMap, convertFromEuroBase, normalizeConversionTargets });
 });
