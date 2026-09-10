@@ -745,7 +745,7 @@
     host.addEventListener("pointerleave", () => { if (!state.pinned && !state.activeField) scheduleHide(); });
 
     function header(match) {
-      return `<div class="head"><i class="dot"></i>Detected · ${escapeHtml(match.currencyName)}</div><div class="source">${escapeHtml(formatSource(match.amount, match.currency))}</div>`;
+      return `<div class="head"><i class="dot"></i>Detected · ${escapeHtml(match.currencyName)}</div><div class="source">${escapeHtml(formatSource(match))}</div>`;
     }
     function targetRows(targets, converted, loading) {
       return targets.map((code) => {
@@ -783,12 +783,16 @@
     return { host, renderLoading, renderResult, renderError, setPinned, setAbove, applyAppearance };
   }
 
-  function formatSource(amount, currency) {
-    return `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(amount)} ${currency}`;
+  function formatSource(match) {
+    return CurrencyLensCurrency.formatCurrencyDisplay(match.amount, match.currency, {
+      marker: match.marker,
+      raw: match.raw,
+      numberRaw: match.numberRaw
+    });
   }
 
   function formatCurrency(amount, currency) {
-    return new Intl.NumberFormat(undefined, { style: "currency", currency, maximumFractionDigits: 2 }).format(amount);
+    return CurrencyLensCurrency.formatCurrencyDisplay(amount, currency);
   }
 
   function escapeHtml(value) {

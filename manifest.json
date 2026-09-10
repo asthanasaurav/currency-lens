@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Currency Lens",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Hover over prices or focus amount fields to see the detected currency converted to currencies you choose.",
   "permissions": ["activeTab", "alarms", "storage"],
   "host_permissions": ["https://api.frankfurter.dev/*"],

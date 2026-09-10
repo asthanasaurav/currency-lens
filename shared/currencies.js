@@ -340,6 +340,66 @@
     return 0;
   }
 
+  function formatNumberAmount(amount, maximumFractionDigits) {
+    return new Intl.NumberFormat(undefined, {
+      maximumFractionDigits: maximumFractionDigits == null ? 2 : maximumFractionDigits
+    }).format(amount);
+  }
+
+  function escapeRegex(value) {
+    return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  function markerPlacement(raw, marker) {
+    const text = String(raw || "").trim();
+    const token = String(marker || "").trim();
+    if (!text || !token) return /^[A-Z]{3}$/.test(token) ? "suffix" : "prefix";
+    if (text.startsWith(token)) return "prefix";
+    if (text.endsWith(token)) return "suffix";
+    if (new RegExp(`^${escapeRegex(token)}\\s*`, "u").test(text)) return "prefix";
+    if (new RegExp(`\\s*${escapeRegex(token)}$`, "u").test(text)) return "suffix";
+    return /^[A-Z]{3}$/.test(token) ? "suffix" : "prefix";
+  }
+
+  function formatMarkerAmount(amount, marker, raw, numberRaw, currencyCode) {
+    const token = String(marker || currencyCode || "").trim();
+    const number = String(numberRaw || formatNumberAmount(amount)).trim();
+    if (!token) return `${number} ${currencyCode || ""}`.trim();
+    if (markerPlacement(raw, token) === "suffix") return `${number} ${token}`;
+    return `${token} ${number}`;
+  }
+
+  function formatIsoCurrencyAmount(amount, currencyCode) {
+    const parts = new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: currencyCode,
+      maximumFractionDigits: 2
+    }).formatToParts(amount);
+    const currencyPart = parts.find((part) => part.type === "currency");
+    if (!currencyPart) return `${formatNumberAmount(amount)} ${currencyCode}`;
+
+    const numberTypes = new Set(["integer", "decimal", "fraction", "group"]);
+    const numberText = parts
+      .filter((part) => numberTypes.has(part.type) || (part.type === "literal" && /[.,\s\u00a0\u202f]/u.test(part.value)))
+      .map((part) => part.value)
+      .join("")
+      .replace(/\s+/g, " ")
+      .trim();
+    const currencyText = currencyPart.value.trim();
+    const currencyIndex = parts.indexOf(currencyPart);
+    const firstNumberIndex = parts.findIndex((part) => numberTypes.has(part.type));
+    if (currencyIndex < firstNumberIndex) return `${currencyText} ${numberText}`.trim();
+    return `${numberText} ${currencyText}`.trim();
+  }
+
+  function formatCurrencyDisplay(amount, currencyCode, options) {
+    const opts = options && typeof options === "object" ? options : {};
+    if (opts.marker != null || opts.raw || opts.numberRaw) {
+      return formatMarkerAmount(amount, opts.marker, opts.raw, opts.numberRaw, currencyCode);
+    }
+    return formatIsoCurrencyAmount(amount, currencyCode);
+  }
+
   function parseCurrencyAmounts(text, context) {
     if (typeof text !== "string" || !text.trim()) return [];
     const results = [];
@@ -373,6 +433,8 @@
     findCurrencyAtOffset,
     lineCountForText,
     lineIndexForOffset,
-    resolveAmbiguous
+    resolveAmbiguous,
+    formatCurrencyDisplay,
+    formatNumberAmount
   });
 });

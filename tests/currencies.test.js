@@ -129,6 +129,23 @@ test("binds a currency symbol to the following number when it sits between two a
   assert.deepEqual(pick(separated[0]), { amount: 22999, currency: "INR", raw: "₹22,999" });
 });
 
+test("formats detected and converted amounts with a space before or after the marker", () => {
+  assert.equal(
+    currency.formatCurrencyDisplay(149, "GBP", { marker: "£", raw: "£149.00", numberRaw: "149.00" }),
+    "£ 149.00"
+  );
+  assert.equal(
+    currency.formatCurrencyDisplay(12500, "CAD", { marker: "CAD", raw: "12,500 CAD", numberRaw: "12,500" }),
+    "12,500 CAD"
+  );
+  assert.equal(
+    currency.formatCurrencyDisplay(40, "USD", { marker: "$", raw: "$40", numberRaw: "40" }),
+    "$ 40"
+  );
+  assert.match(currency.formatCurrencyDisplay(40, "USD"), /(?:\$|USD)\s+40(?:[.,]00)?/);
+  assert.match(currency.formatCurrencyDisplay(117, "EUR"), /(?:€|EUR)\s+117(?:[.,]00)?|117(?:[.,]00)?\s+(?:€|EUR)/);
+});
+
 function pick(result) {
   return { amount: result.amount, currency: result.currency, raw: result.raw };
 }
